@@ -15,6 +15,8 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class SwitchStatementsShouldHaveADefaultCaseAnalyzer : GuidelineAnalyzer
     {
+        // TODO: Add tests for Pattern Matching constructs
+
         public const string DiagnosticId = "AV1536";
 
         private const string Title = "Incomplete switch statement without a default case clause";

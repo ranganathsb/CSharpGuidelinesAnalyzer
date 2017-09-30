@@ -53,7 +53,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Framework
                 .InDefaultClass(@"
                     void M()
                     {
-                        [|dynamic d = ""A"";|]
+                        dynamic [|d = ""A""|];
                     }
                 ")
                 .Build();

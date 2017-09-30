@@ -4,7 +4,7 @@
     <PackageTargetFallback>portable-net45+win8+wp8+wpa81</PackageTargetFallback>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <DebugType>full</DebugType>
   </PropertyGroup>
   <PropertyGroup>
@@ -26,6 +26,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\..\bin\Debug</OutputPath>
+    <WarningsAsErrors />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath>..\..\..\bin\Release</OutputPath>
@@ -43,7 +44,7 @@
     <PackageReference Include="CSharpGuidelinesAnalyzer" Version="2.0.0" />
     <PackageReference Include="JetBrains.Annotations" Version="11.0.0" PrivateAssets="all" />
     <PackageReference Include="JetBrains.ExternalAnnotations" Version="10.2.29" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis" Version="2.3.1" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="2.6.0-beta1-62126-01" PrivateAssets="all" />
     <PackageReference Include="ResharperCodeContractNullability" Version="1.0.8" PrivateAssets="all" />
   </ItemGroup>
   <!--

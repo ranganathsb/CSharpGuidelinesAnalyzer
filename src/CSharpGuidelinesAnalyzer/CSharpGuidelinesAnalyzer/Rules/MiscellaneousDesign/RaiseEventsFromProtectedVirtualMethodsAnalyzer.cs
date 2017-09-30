@@ -186,14 +186,14 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                 this.local = local;
             }
 
-            public override void VisitAssignmentExpression([NotNull] IAssignmentExpression operation)
+            public override void VisitSimpleAssignmentExpression([NotNull] ISimpleAssignmentExpression operation)
             {
                 if (operation.Target is ILocalReferenceExpression targetLocal && local.Equals(targetLocal.Local))
                 {
                     TrySetEvent(operation.Value);
                 }
 
-                base.VisitAssignmentExpression(operation);
+                base.VisitSimpleAssignmentExpression(operation);
             }
 
             public override void VisitVariableDeclaration([NotNull] IVariableDeclaration operation)

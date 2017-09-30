@@ -37,8 +37,10 @@ namespace CSharpGuidelinesAnalyzer.Rules.Framework
                     startContext.RegisterOperationAction(c => c.SkipInvalid(AnalyzeVariableDeclaration),
                         OperationKind.VariableDeclaration);
 
+                    
                     startContext.RegisterOperationAction(c => c.SkipInvalid(AnalyzeAssignment),
-                        OperationKind.AssignmentExpression);
+                        OperationKind.SimpleAssignmentExpression);
+                    
                 }
             });
         }
@@ -79,7 +81,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Framework
 
         private bool RequiresReport([CanBeNull] IOperation value)
         {
-            if (value is IConversionExpression conversion && !conversion.IsExplicit)
+            if (value is IConversionExpression conversion && !conversion.IsExplicitInCode)
             {
                 ITypeSymbol sourceType = conversion.Operand.Type;
 

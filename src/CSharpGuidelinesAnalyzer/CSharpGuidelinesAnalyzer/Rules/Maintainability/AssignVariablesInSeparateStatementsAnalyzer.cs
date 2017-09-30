@@ -29,7 +29,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 
         private readonly ImmutableArray<OperationKind> statementKinds = ImmutableArray.Create(
             OperationKind.VariableDeclarationStatement, OperationKind.SwitchStatement, OperationKind.IfStatement,
-            OperationKind.LoopStatement, OperationKind.ThrowStatement, OperationKind.ReturnStatement, OperationKind.LockStatement,
+            OperationKind.LoopStatement, OperationKind.ReturnStatement, OperationKind.LockStatement,
             OperationKind.UsingStatement, OperationKind.YieldReturnStatement, OperationKind.ExpressionStatement);
 
         public override void Initialize([NotNull] AnalysisContext context)
@@ -58,8 +58,17 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
         [NotNull]
         private static Location GetLocation([NotNull] IOperation operation)
         {
-            return operation.GetLocationForKeyword(LookupKeywordStrategy.PreferWhileKeywordInDoWhileLoop) ??
-                operation.Syntax.GetLocation();
+            var targetOperation = operation;
+
+            // TODO: May need to apply this trick multiple times to keep location parity with master branch.
+            if (operation is IExpressionStatement expressionStatement &&
+                expressionStatement.Expression is IThrowExpression throwExpression)
+            {
+                targetOperation = throwExpression;
+            }
+
+            return targetOperation.GetLocationForKeyword(LookupKeywordStrategy.PreferWhileKeywordInDoWhileLoop) ??
+                targetOperation.Syntax.GetLocation();
         }
 
         [NotNull]
@@ -107,15 +116,15 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 base.VisitVariableDeclaration(operation);
             }
 
-            public override void VisitLambdaExpression([NotNull] ILambdaExpression operation)
+            public override void VisitAnonymousFunctionExpression([NotNull] IAnonymousFunctionExpression operation)
             {
             }
 
-            public override void VisitAssignmentExpression([NotNull] IAssignmentExpression operation)
+            public override void VisitSimpleAssignmentExpression([NotNull] ISimpleAssignmentExpression operation)
             {
                 RegisterAssignment(operation.Target);
 
-                base.VisitAssignmentExpression(operation);
+                base.VisitSimpleAssignmentExpression(operation);
             }
 
             public override void VisitCompoundAssignmentExpression([NotNull] ICompoundAssignmentExpression operation)
@@ -125,11 +134,11 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 base.VisitCompoundAssignmentExpression(operation);
             }
 
-            public override void VisitIncrementExpression([NotNull] IIncrementExpression operation)
+            public override void VisitIncrementOrDecrementExpression([NotNull] IIncrementOrDecrementExpression operation)
             {
                 RegisterAssignment(operation.Target);
 
-                base.VisitIncrementExpression(operation);
+                base.VisitIncrementOrDecrementExpression(operation);
             }
 
             private void RegisterAssignment([NotNull] IOperation operation)
@@ -156,14 +165,24 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 Visit(operation.Collection);
             }
 
-            public override void VisitWhileUntilLoopStatement([NotNull] IWhileUntilLoopStatement operation)
+            public override void VisitDoLoopStatement([NotNull] IDoLoopStatement operation)
             {
                 Visit(operation.Condition);
             }
 
+            public override void VisitWhileLoopStatement([NotNull] IWhileLoopStatement operation)
+            {
+                Visit(operation.Condition);
+            }
+
+            /*public override void VisitThrowExpression([NotNull] IThrowExpression operation)
+            {
+                Visit(operation.Expression);
+            }*/
+
             public override void VisitLockStatement([NotNull] ILockStatement operation)
             {
-                Visit(operation.LockedObject);
+                Visit(operation.Expression);
             }
 
             public override void VisitUsingStatement([NotNull] IUsingStatement operation)

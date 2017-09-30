@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Semantics;
 
@@ -85,24 +84,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 base.VisitExpressionStatement(operation);
             }
 
-            public override void VisitLambdaExpression([NotNull] ILambdaExpression operation)
-            {
-                if (!IsBodyCompilerGenerated(operation))
-                {
-                    Visit(operation.Body);
-                }
-            }
-
-            private static bool IsBodyCompilerGenerated([NotNull] ILambdaExpression operation)
-            {
-#pragma warning disable AV2310 // Code blocks should not contain inline comments
-                // Workaround for https://github.com/dotnet/roslyn/issues/10214
-#pragma warning restore AV2310 // Code blocks should not contain inline comments
-
-                var lambdaExpressionSyntax = operation.Syntax as LambdaExpressionSyntax;
-                return lambdaExpressionSyntax?.Body is ExpressionSyntax;
-            }
-
+            /*
             public override void VisitFixedStatement([NotNull] IFixedStatement operation)
             {
 #pragma warning disable AV2310 // Code blocks should not contain inline comments
@@ -113,6 +95,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 
                 base.VisitFixedStatement(operation);
             }
+            */
 
             public override void VisitForEachLoopStatement([NotNull] IForEachLoopStatement operation)
             {
@@ -156,17 +139,21 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 base.VisitSwitchStatement(operation);
             }
 
+            /*
             public override void VisitThrowStatement([NotNull] IThrowStatement operation)
             {
                 IncrementStatementCount(operation);
                 base.VisitThrowStatement(operation);
             }
+            */
 
+            /*
             public override void VisitTryStatement([NotNull] ITryStatement operation)
             {
                 IncrementStatementCount(operation);
                 base.VisitTryStatement(operation);
             }
+            */
 
             public override void VisitUsingStatement([NotNull] IUsingStatement operation)
             {
@@ -180,10 +167,16 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 base.VisitVariableDeclarationStatement(operation);
             }
 
-            public override void VisitWhileUntilLoopStatement([NotNull] IWhileUntilLoopStatement operation)
+            public override void VisitDoLoopStatement([NotNull] IDoLoopStatement operation)
             {
                 IncrementStatementCount(operation);
-                base.VisitWhileUntilLoopStatement(operation);
+                base.VisitDoLoopStatement(operation);
+            }
+
+            public override void VisitWhileLoopStatement([NotNull] IWhileLoopStatement operation)
+            {
+                IncrementStatementCount(operation);
+                base.VisitWhileLoopStatement(operation);
             }
 
             public override void VisitYieldBreakStatement([NotNull] IReturnStatement operation)

@@ -688,10 +688,10 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                     {
                         void [|M|](string s)
                         {
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
 
                             throw new NotImplementedException();
                             throw new NotImplementedException();
@@ -717,10 +717,10 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                     {
                         void M(string s)
                         {
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
-                            throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
+                            s = s ?? throw new NotImplementedException();
 
                             throw new NotImplementedException();
                             throw new NotImplementedException();
@@ -734,7 +734,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
             VerifyGuidelineDiagnostic(source);
         }
 
-        [Fact]
+        [Fact(Skip = "TODO: Wait for API support")]
         internal void When_method_contains_eight_try_statements_it_must_be_reported()
         {
             // Arrange
@@ -803,7 +803,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                 "Method 'C.M()' contains 8 statements, which exceeds the maximum of seven statements.");
         }
 
-        [Fact]
+        [Fact(Skip = "TODO: Wait for API support")]
         internal void When_method_contains_seven_try_statements_it_must_be_skipped()
         {
             // Arrange

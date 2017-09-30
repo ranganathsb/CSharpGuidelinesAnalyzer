@@ -55,7 +55,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 
         private static bool IsOperatorNot([NotNull] IUnaryOperatorExpression unaryOperator)
         {
-            return unaryOperator.UnaryOperationKind == UnaryOperationKind.BooleanLogicalNot;
+            return unaryOperator.OperatorKind == UnaryOperatorKind.Not;
         }
 
         private static bool ContainsNegatingWord([NotNull] IdentifierInfo info)

@@ -29,19 +29,19 @@ namespace CSharpGuidelinesAnalyzer.Rules.Naming
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
-            context.RegisterConditionalOperationAction(c => c.SkipInvalid(AnalyzeLambdaExpression),
-                OperationKind.LambdaExpression);
+            context.RegisterConditionalOperationAction(c => c.SkipInvalid(AnalyzeAnonymousFunction),
+                OperationKind.AnonymousFunctionExpression);
         }
 
-        private void AnalyzeLambdaExpression(OperationAnalysisContext context)
+        private void AnalyzeAnonymousFunction(OperationAnalysisContext context)
         {
-            var lambdaExpression = (ILambdaExpression)context.Operation;
+            var anonymousFunction = (IAnonymousFunctionExpression)context.Operation;
 
-            foreach (IParameterSymbol parameter in lambdaExpression.Signature.Parameters)
+            foreach (IParameterSymbol parameter in anonymousFunction.Symbol.Parameters)
             {
                 if (!ConsistsOfUnderscoresOnly(parameter.Name))
                 {
-                    AnalyzeParameterUsage(parameter, lambdaExpression.Signature, context);
+                    AnalyzeParameterUsage(parameter, anonymousFunction.Symbol, context);
                 }
             }
         }

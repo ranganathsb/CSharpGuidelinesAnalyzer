@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Reflection;
+using System.Linq;
+using System.Threading;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,10 +12,6 @@ namespace CSharpGuidelinesAnalyzer.Extensions
     /// <summary />
     internal static class OperationExtensions
     {
-        [NotNull]
-        private static readonly ConcurrentDictionary<Type, MethodInfo> OperationCompilerGeneratedCache =
-            new ConcurrentDictionary<Type, MethodInfo>();
-
         [CanBeNull]
         public static IdentifierInfo TryGetIdentifierInfo([CanBeNull] this IOperation identifier)
         {
@@ -68,13 +64,6 @@ namespace CSharpGuidelinesAnalyzer.Extensions
             }
 
             [NotNull]
-            public override IdentifierInfo VisitIndexedPropertyReferenceExpression(
-                [NotNull] IIndexedPropertyReferenceExpression operation, [CanBeNull] object argument)
-            {
-                return CreateForMemberReferenceExpression(operation, operation.Property.Type);
-            }
-
-            [NotNull]
             private IdentifierInfo CreateForMemberReferenceExpression([NotNull] IMemberReferenceExpression operation,
                 [NotNull] ITypeSymbol memberType)
             {
@@ -111,22 +100,20 @@ namespace CSharpGuidelinesAnalyzer.Extensions
             }
 
             [NotNull]
-            public override Location VisitWhileUntilLoopStatement([NotNull] IWhileUntilLoopStatement operation,
-                [CanBeNull] object argument)
+            public override Location VisitDoLoopStatement([NotNull] IDoLoopStatement operation, [CanBeNull] object argument)
             {
-                if (operation.Syntax is DoStatementSyntax doSyntax)
-                {
+                var syntax = (DoStatementSyntax)operation.Syntax;
+
                     return lookupStrategy == LookupKeywordStrategy.PreferDoKeywordInDoWhileLoop
-                        ? doSyntax.DoKeyword.GetLocation()
-                        : doSyntax.WhileKeyword.GetLocation();
-                }
+                        ? syntax.DoKeyword.GetLocation()
+                        : syntax.WhileKeyword.GetLocation();
+            }
 
-                if (operation.Syntax is WhileStatementSyntax whileSyntax)
-                {
-                    return whileSyntax.WhileKeyword.GetLocation();
-                }
-
-                throw ExceptionFactory.Unreachable();
+            [NotNull]
+            public override Location VisitWhileLoopStatement([NotNull] IWhileLoopStatement operation, [CanBeNull] object argument)
+            {
+                var syntax = (WhileStatementSyntax)operation.Syntax;
+                return syntax.WhileKeyword.GetLocation();
             }
 
             [NotNull]
@@ -211,11 +198,22 @@ namespace CSharpGuidelinesAnalyzer.Extensions
             }
 
             [NotNull]
+            public override Location VisitThrowExpression([NotNull] IThrowExpression operation, [CanBeNull] object argument)
+            {
+                // TODO: Can we get ThrowExpressionSyntax here too?
+
+                var syntax = (ThrowStatementSyntax)operation.Syntax;
+                return syntax.ThrowKeyword.GetLocation();
+            }
+
+            /*
+            [NotNull]
             public override Location VisitThrowStatement([NotNull] IThrowStatement operation, [CanBeNull] object argument)
             {
                 var syntax = (ThrowStatementSyntax)operation.Syntax;
                 return syntax.ThrowKeyword.GetLocation();
             }
+            */
 
             [NotNull]
             public override Location VisitSingleValueCaseClause([NotNull] ISingleValueCaseClause operation,
@@ -224,35 +222,41 @@ namespace CSharpGuidelinesAnalyzer.Extensions
                 var syntax = (SwitchLabelSyntax)operation.Syntax;
                 return syntax.Keyword.GetLocation();
             }
+
+            [NotNull]
+            public override Location VisitDefaultCaseClause([NotNull] IDefaultCaseClause operation, [CanBeNull] object argument)
+            {
+                var syntax = (DefaultSwitchLabelSyntax)operation.Syntax;
+                return syntax.Keyword.GetLocation();
+            }
+
+            public override Location VisitPatternCaseClause([NotNull] IPatternCaseClause operation, [CanBeNull] object argument)
+            {
+                // TODO
+                throw new NotImplementedException();
+            }
         }
 
         public static bool IsCompilerGenerated([CanBeNull] this IOperation operation)
         {
-            Type type = operation?.GetType();
-            if (type != null)
-            {
-                MethodInfo compilerGeneratedGetter = GetOperationCompilerGeneratedGetterFor(type);
-                if (compilerGeneratedGetter != null)
-                {
-                    return (bool)compilerGeneratedGetter.Invoke(operation, null);
-                }
-            }
-
-            return false;
+            return operation?.IsImplicit ?? false;
         }
 
-        [CanBeNull]
-        private static MethodInfo GetOperationCompilerGeneratedGetterFor([NotNull] Type type)
+        public static bool HasErrors([NotNull] this IOperation operation, [NotNull] Compilation compilation,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (!OperationCompilerGeneratedCache.TryGetValue(type, out MethodInfo compilerGeneratedGetter))
-            {
-                PropertyInfo property = type.GetRuntimeProperty("WasCompilerGenerated");
-                compilerGeneratedGetter = property?.GetMethod;
+            Guard.NotNull(operation, nameof(operation));
+            Guard.NotNull(compilation, nameof(compilation));
 
-                OperationCompilerGeneratedCache.TryAdd(type, compilerGeneratedGetter);
+            if (operation.Syntax == null)
+            {
+                return true;
             }
 
-            return compilerGeneratedGetter;
+            SemanticModel model = compilation.GetSemanticModel(operation.Syntax.SyntaxTree);
+
+            return model.GetDiagnostics(operation.Syntax.Span, cancellationToken)
+                .Any(d => d.Severity == DiagnosticSeverity.Error);
         }
     }
 }

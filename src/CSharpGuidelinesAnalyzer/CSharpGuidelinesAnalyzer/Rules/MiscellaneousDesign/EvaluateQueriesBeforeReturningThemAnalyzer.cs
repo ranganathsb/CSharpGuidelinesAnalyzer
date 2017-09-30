@@ -5,7 +5,6 @@ using System.Linq;
 using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Semantics;
 
@@ -138,9 +137,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                 var visitor = new ExpressionVisitor(this);
                 visitor.Visit(expression);
 
-                return visitor.Result ?? (expression.Syntax is QueryExpressionSyntax
-                    ? EvaluationResult.Query
-                    : AnalyzeMemberInvocation(expression));
+                return visitor.Result ?? AnalyzeMemberInvocation(expression);
             }
 
             private sealed class ExpressionVisitor : OperationVisitor
@@ -162,9 +159,16 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     Result = owner.AnalyzeLocalReference(operation);
                 }
 
-                public override void VisitConditionalChoiceExpression([NotNull] IConditionalChoiceExpression operation)
+                public override void VisitConditionalExpression([NotNull] IConditionalExpression operation)
                 {
-                    Result = owner.AnalyzeConditionalChoice(operation);
+                    // TODO: Ensure support for ?: ?? ?. (compound) assignment and throw expressions
+
+                    Result = owner.AnalyzeConditional(operation);
+                }
+
+                public override void VisitTranslatedQueryExpression([NotNull] ITranslatedQueryExpression operation)
+                {
+                    Result = EvaluationResult.Query;
                 }
             }
 
@@ -178,10 +182,10 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
             }
 
             [NotNull]
-            private EvaluationResult AnalyzeConditionalChoice([NotNull] IConditionalChoiceExpression conditional)
+            private EvaluationResult AnalyzeConditional([NotNull] IConditionalExpression conditional)
             {
-                EvaluationResult trueResult = AnalyzeExpression(conditional.IfTrueValue);
-                EvaluationResult falseResult = AnalyzeExpression(conditional.IfFalseValue);
+                EvaluationResult trueResult = AnalyzeExpression(conditional.WhenTrue);
+                EvaluationResult falseResult = AnalyzeExpression(conditional.WhenFalse);
 
                 return EvaluationResult.Unify(trueResult, falseResult);
             }
@@ -308,9 +312,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     }
                 }
 
-                public override void VisitAssignmentExpression([NotNull] IAssignmentExpression operation)
+                public override void VisitSimpleAssignmentExpression([NotNull] ISimpleAssignmentExpression operation)
                 {
-                    base.VisitAssignmentExpression(operation);
+                    base.VisitSimpleAssignmentExpression(operation);
 
                     if (operation.Target is ILocalReferenceExpression targetLocal && currentLocal.Equals(targetLocal.Local))
                     {

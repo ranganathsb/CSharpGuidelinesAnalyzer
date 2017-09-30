@@ -52,7 +52,12 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             [CanBeNull]
             public Location LoopStatementLocation { get; private set; }
 
-            public override void VisitWhileUntilLoopStatement([NotNull] IWhileUntilLoopStatement operation)
+            public override void VisitDoLoopStatement([NotNull] IDoLoopStatement operation)
+            {
+                LoopStatementLocation = operation.GetLocationForKeyword();
+            }
+
+            public override void VisitWhileLoopStatement([NotNull] IWhileLoopStatement operation)
             {
                 LoopStatementLocation = operation.GetLocationForKeyword();
             }
