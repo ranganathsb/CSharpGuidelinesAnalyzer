@@ -3,7 +3,7 @@ using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.Naming
 {
@@ -30,12 +30,12 @@ namespace CSharpGuidelinesAnalyzer.Rules.Naming
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
             context.RegisterConditionalOperationAction(c => c.SkipInvalid(AnalyzeAnonymousFunction),
-                OperationKind.AnonymousFunctionExpression);
+                OperationKind.AnonymousFunction);
         }
 
         private void AnalyzeAnonymousFunction(OperationAnalysisContext context)
         {
-            var anonymousFunction = (IAnonymousFunctionExpression)context.Operation;
+            var anonymousFunction = (IAnonymousFunctionOperation)context.Operation;
 
             foreach (IParameterSymbol parameter in anonymousFunction.Symbol.Parameters)
             {

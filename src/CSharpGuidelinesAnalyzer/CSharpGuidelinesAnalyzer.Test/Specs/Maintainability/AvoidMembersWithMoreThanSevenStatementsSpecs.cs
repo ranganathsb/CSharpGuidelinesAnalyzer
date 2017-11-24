@@ -734,7 +734,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
             VerifyGuidelineDiagnostic(source);
         }
 
-        [Fact(Skip = "TODO: Wait for API support")]
+        [Fact]
         internal void When_method_contains_eight_try_statements_it_must_be_reported()
         {
             // Arrange
@@ -803,7 +803,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                 "Method 'C.M()' contains 8 statements, which exceeds the maximum of seven statements.");
         }
 
-        [Fact(Skip = "TODO: Wait for API support")]
+        [Fact]
         internal void When_method_contains_seven_try_statements_it_must_be_skipped()
         {
             // Arrange

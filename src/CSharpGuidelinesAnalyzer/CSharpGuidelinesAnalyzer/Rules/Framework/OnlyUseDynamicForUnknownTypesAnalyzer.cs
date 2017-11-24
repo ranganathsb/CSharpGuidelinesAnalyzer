@@ -4,7 +4,7 @@ using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.Framework
 {
@@ -37,24 +37,26 @@ namespace CSharpGuidelinesAnalyzer.Rules.Framework
                     startContext.RegisterOperationAction(c => c.SkipInvalid(AnalyzeVariableDeclaration),
                         OperationKind.VariableDeclaration);
 
-                    
-                    startContext.RegisterOperationAction(c => c.SkipInvalid(AnalyzeAssignment),
-                        OperationKind.SimpleAssignmentExpression);
-                    
+                    startContext.RegisterOperationAction(c => c.SkipInvalid(AnalyzeAssignment), OperationKind.SimpleAssignment);
+
                 }
             });
         }
 
         private void AnalyzeVariableDeclaration(OperationAnalysisContext context)
         {
-            var declaration = (IVariableDeclaration)context.Operation;
-            ILocalSymbol variable = declaration.Variables.Single();
+            var declaration = (IVariableDeclarationOperation)context.Operation;
 
-            if (IsDynamicType(variable.Type))
+            foreach (var declarator in declaration.Declarators)
             {
-                if (RequiresReport(declaration.Initializer))
+                ILocalSymbol variable = declarator.Symbol;
+
+                if (IsDynamicType(variable.Type) && declarator.Initializer != null)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(Rule, declaration.Syntax.GetLocation(), variable.Name));
+                    if (RequiresReport(declarator.Initializer.Value))
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(Rule, declarator.Syntax.GetLocation(), variable.Name));
+                    }
                 }
             }
         }
@@ -66,7 +68,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Framework
 
         private void AnalyzeAssignment(OperationAnalysisContext context)
         {
-            var assignment = (IAssignmentExpression)context.Operation;
+            var assignment = (IAssignmentOperation)context.Operation;
 
             IdentifierInfo identifierInfo = assignment.Target.TryGetIdentifierInfo();
             if (identifierInfo != null && IsDynamicType(identifierInfo.Type))
@@ -81,9 +83,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Framework
 
         private bool RequiresReport([CanBeNull] IOperation value)
         {
-            if (value is IConversionExpression conversion && !conversion.IsExplicitInCode)
+            if (value is IConversionOperation conversion && conversion.IsImplicit)
             {
-                ITypeSymbol sourceType = conversion.Operand.Type;
+                var sourceType = conversion.Operand.Type;
 
                 if (sourceType != null && !IsDynamicType(sourceType) && sourceType.SpecialType != SpecialType.System_Object)
                 {

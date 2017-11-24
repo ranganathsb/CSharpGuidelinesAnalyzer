@@ -5,7 +5,7 @@ using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.Naming
 {
@@ -42,8 +42,8 @@ namespace CSharpGuidelinesAnalyzer.Rules.Naming
 
         private void AnalyzeVariableDeclaration(OperationAnalysisContext context)
         {
-            var declaration = (IVariableDeclaration)context.Operation;
-            ILocalSymbol variable = declaration.Variables.Single();
+            var declaration = (IVariableDeclarationOperation)context.Operation;
+            ILocalSymbol variable = declaration.Declarators.Single().Symbol;
 
             if (Blacklist.Contains(variable.Name))
             {

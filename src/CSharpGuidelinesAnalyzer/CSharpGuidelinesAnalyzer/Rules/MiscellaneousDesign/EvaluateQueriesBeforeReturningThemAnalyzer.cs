@@ -6,7 +6,7 @@ using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
 {
@@ -68,8 +68,8 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
 
             var variableEvaluationCache = new Dictionary<ILocalSymbol, EvaluationResult>();
 
-            foreach (IReturnStatement returnStatement in context.OperationBlocks.SelectMany(b =>
-                b.DescendantsAndSelf().OfType<IReturnStatement>()))
+            foreach (var returnStatement in context.OperationBlocks.SelectMany(b =>
+                b.DescendantsAndSelf().OfType<IReturnOperation>()))
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
@@ -83,7 +83,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                 method.ReturnType.SpecialType == SpecialType.System_Collections_IEnumerable;
         }
 
-        private void AnalyzeReturnStatement([NotNull] IReturnStatement returnStatement, OperationBlockAnalysisContext context,
+        private void AnalyzeReturnStatement([NotNull] IReturnOperation returnStatement, OperationBlockAnalysisContext context,
             [NotNull] IDictionary<ILocalSymbol, EvaluationResult> variableEvaluationCache)
         {
             if (!ReturnsConstant(returnStatement) && !IsYieldBreak(returnStatement))
@@ -93,14 +93,14 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
             }
         }
 
-        private bool IsYieldBreak([NotNull] IReturnStatement returnStatement)
+        private bool IsYieldBreak([NotNull] IReturnOperation returnStatement)
         {
             return returnStatement.ReturnedValue == null;
         }
 
-        private static bool ReturnsConstant([NotNull] IReturnStatement returnStatement)
+        private static bool ReturnsConstant([NotNull] IReturnOperation returnStatement)
         {
-            return returnStatement.ReturnedValue is ILiteralExpression;
+            return returnStatement.ReturnedValue is ILiteralOperation;
         }
 
         private sealed class ReturnValueAnalyzer
@@ -117,7 +117,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                 this.variableEvaluationCache = variableEvaluationCache;
             }
 
-            public void Analyze([NotNull] IReturnStatement returnStatement)
+            public void Analyze([NotNull] IReturnOperation returnStatement)
             {
                 EvaluationResult result = AnalyzeExpression(returnStatement.ReturnedValue);
 
@@ -154,26 +154,26 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     this.owner = owner;
                 }
 
-                public override void VisitLocalReferenceExpression([NotNull] ILocalReferenceExpression operation)
+                public override void VisitLocalReference([NotNull] ILocalReferenceOperation operation)
                 {
                     Result = owner.AnalyzeLocalReference(operation);
                 }
 
-                public override void VisitConditionalExpression([NotNull] IConditionalExpression operation)
+                public override void VisitConditional([NotNull] IConditionalOperation operation)
                 {
                     // TODO: Ensure support for ?: ?? ?. (compound) assignment and throw expressions
 
                     Result = owner.AnalyzeConditional(operation);
                 }
 
-                public override void VisitTranslatedQueryExpression([NotNull] ITranslatedQueryExpression operation)
+                public override void VisitTranslatedQuery([NotNull] ITranslatedQueryOperation operation)
                 {
                     Result = EvaluationResult.Query;
                 }
             }
 
             [NotNull]
-            private EvaluationResult AnalyzeLocalReference([NotNull] ILocalReferenceExpression local)
+            private EvaluationResult AnalyzeLocalReference([NotNull] ILocalReferenceOperation local)
             {
                 var assignmentWalker = new VariableAssignmentWalker(local.Local, this);
                 assignmentWalker.VisitMethod();
@@ -182,7 +182,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
             }
 
             [NotNull]
-            private EvaluationResult AnalyzeConditional([NotNull] IConditionalExpression conditional)
+            private EvaluationResult AnalyzeConditional([NotNull] IConditionalOperation conditional)
             {
                 EvaluationResult trueResult = AnalyzeExpression(conditional.WhenTrue);
                 EvaluationResult falseResult = AnalyzeExpression(conditional.WhenFalse);
@@ -199,7 +199,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                 return invocationWalker.Result;
             }
 
-            private void ReportDiagnosticAt([NotNull] IReturnStatement returnStatement, [NotNull] string operationName)
+            private void ReportDiagnosticAt([NotNull] IReturnOperation returnStatement, [NotNull] string operationName)
             {
                 Location location = returnStatement.GetLocationForKeyword();
                 ISymbol containingMember = context.OwningSymbol.GetContainingMember();
@@ -224,9 +224,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
             /// </summary>
             private sealed class MemberInvocationWalker : LinqOperationWalker
             {
-                public override void VisitInvocationExpression([NotNull] IInvocationExpression operation)
+                public override void VisitInvocation([NotNull] IInvocationOperation operation)
                 {
-                    base.VisitInvocationExpression(operation);
+                    base.VisitInvocation(operation);
 
                     if (operation.Instance == null)
                     {
@@ -239,7 +239,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     Result.SetUnknown();
                 }
 
-                private bool IsExecutionDeferred([NotNull] IInvocationExpression operation)
+                private bool IsExecutionDeferred([NotNull] IInvocationOperation operation)
                 {
                     if (LinqOperatorsDeferred.Contains(operation.TargetMethod.Name))
                     {
@@ -250,7 +250,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     return false;
                 }
 
-                private bool IsExecutionImmediate([NotNull] IInvocationExpression operation)
+                private bool IsExecutionImmediate([NotNull] IInvocationOperation operation)
                 {
                     if (LinqOperatorsImmediate.Contains(operation.TargetMethod.Name))
                     {
@@ -299,24 +299,24 @@ namespace CSharpGuidelinesAnalyzer.Rules.MiscellaneousDesign
                     }
                 }
 
-                public override void VisitVariableDeclarationStatement([NotNull] IVariableDeclarationStatement operation)
+                public override void VisitVariableDeclaration([NotNull] IVariableDeclarationOperation operation)
                 {
-                    base.VisitVariableDeclarationStatement(operation);
+                    base.VisitVariableDeclaration(operation);
 
-                    foreach (IVariableDeclaration variable in operation.Declarations)
+                    foreach (var variable in operation.Declarators)
                     {
-                        if (currentLocal.Equals(variable.Variables.Single()))
+                        if (currentLocal.Equals(variable.Symbol) && variable.Initializer != null)
                         {
-                            AnalyzeAssignmentValue(variable.Initializer);
+                            AnalyzeAssignmentValue(variable.Initializer.Value);
                         }
                     }
                 }
 
-                public override void VisitSimpleAssignmentExpression([NotNull] ISimpleAssignmentExpression operation)
+                public override void VisitSimpleAssignment([NotNull] ISimpleAssignmentOperation operation)
                 {
-                    base.VisitSimpleAssignmentExpression(operation);
+                    base.VisitSimpleAssignment(operation);
 
-                    if (operation.Target is ILocalReferenceExpression targetLocal && currentLocal.Equals(targetLocal.Local))
+                    if (operation.Target is ILocalReferenceOperation targetLocal && currentLocal.Equals(targetLocal.Local))
                     {
                         AnalyzeAssignmentValue(operation.Value);
                     }

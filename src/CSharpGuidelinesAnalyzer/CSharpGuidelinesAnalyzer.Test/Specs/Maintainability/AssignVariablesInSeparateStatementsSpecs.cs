@@ -324,7 +324,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                     {
                         int i, j, k = 8;
 
-                        for ([|i = j = 5|]; (k = 1) > 0; k -= 2)
+                        [|for|] (i = j = 5; (k = 1) > 0; k -= 2)
                         {
                             k = 3;
                         }
@@ -334,7 +334,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
 
             // Act and assert
             VerifyGuidelineDiagnostic(source,
-                "'i' and 'j' are assigned in a single statement.");
+                "'i', 'j' and 'k' are assigned in a single statement.");
         }
 
         [Fact]
@@ -370,7 +370,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                     {
                         int k = 8;
 
-                        for ([|int i = 1, j = 5|]; (k += 1) > 0; k -= 2)
+                        [|for|] (int i = 1, j = 5; (k += 1) > 0; k -= 2)
                         {
                             k = 3;
                         }
@@ -403,7 +403,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
 
             // Act and assert
             VerifyGuidelineDiagnostic(source,
-                "'i' and 'j' are assigned in a single statement.");
+                "'k', 'i' and 'j' are assigned in a single statement.");
         }
 
         [Fact]
@@ -416,7 +416,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                     {
                         int i, j, k;
 
-                        for (k = 1; (k += 1) > 0; [|i = j = 5|])
+                        [|for|] (k = 1; (k += 1) > 0; i = j = 5)
                         {
                             k = 3;
                         }
@@ -426,7 +426,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
 
             // Act and assert
             VerifyGuidelineDiagnostic(source,
-                "'i' and 'j' are assigned in a single statement.");
+                "'k', 'i' and 'j' are assigned in a single statement.");
         }
 
         [Fact]
@@ -1044,7 +1044,7 @@ namespace CSharpGuidelinesAnalyzer.Test.Specs.Maintainability
                         IDisposable j;
                         int k;
 
-                        using ([|IDisposable i = j = null|])
+                        [|using|] (IDisposable i = j = null)
                         {
                             k = 3;
                         }

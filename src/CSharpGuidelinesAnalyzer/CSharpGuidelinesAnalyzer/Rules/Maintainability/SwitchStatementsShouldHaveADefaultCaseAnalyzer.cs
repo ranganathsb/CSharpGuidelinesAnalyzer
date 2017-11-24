@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 {
@@ -48,7 +48,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                     if (systemBoolean != null)
                     {
                         startContext.RegisterOperationAction(c => c.SkipInvalid(_ => AnalyzeSwitchStatement(c, systemBoolean)),
-                            OperationKind.SwitchStatement);
+                            OperationKind.Switch);
                     }
                 }
             });
@@ -56,7 +56,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 
         private void AnalyzeSwitchStatement(OperationAnalysisContext context, [NotNull] INamedTypeSymbol systemBoolean)
         {
-            var switchStatement = (ISwitchStatement)context.Operation;
+            var switchStatement = (ISwitchOperation)context.Operation;
 
             if (HasDefaultCase(switchStatement))
             {
@@ -73,9 +73,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             }
         }
 
-        private static bool HasDefaultCase([NotNull] ISwitchStatement switchStatement)
+        private static bool HasDefaultCase([NotNull] ISwitchOperation switchStatement)
         {
-            IEnumerable<ICaseClause> caseClauses = switchStatement.Cases.SelectMany(@case => @case.Clauses);
+            IEnumerable<ICaseClauseOperation> caseClauses = switchStatement.Cases.SelectMany(@case => @case.Clauses);
             return caseClauses.Any(clause => clause.CaseKind == CaseKind.Default);
         }
 
@@ -172,9 +172,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             [ItemCanBeNull]
             public ICollection<ISymbol> TryGetSymbolsForCaseClauses([NotNull] SwitchAnalysisContext analysisContext)
             {
-                IEnumerable<ISingleValueCaseClause> caseClauses =
-                    analysisContext.SwitchStatement.Cases.SelectMany(@case => @case.Clauses.OfType<ISingleValueCaseClause>());
-                foreach (ISingleValueCaseClause caseClause in caseClauses)
+                IEnumerable<ISingleValueCaseClauseOperation> caseClauses =
+                    analysisContext.SwitchStatement.Cases.SelectMany(@case => @case.Clauses.OfType<ISingleValueCaseClauseOperation>());
+                foreach (ISingleValueCaseClauseOperation caseClause in caseClauses)
                 {
                     analysisContext.CancellationToken.ThrowIfCancellationRequested();
 
@@ -195,9 +195,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             }
 
             private bool ProcessAsConversion([NotNull] SwitchAnalysisContext analysisContext,
-                [NotNull] ISingleValueCaseClause caseClause)
+                [NotNull] ISingleValueCaseClauseOperation caseClause)
             {
-                var conversion = caseClause.Value as IConversionExpression;
+                var conversion = caseClause.Value as IConversionOperation;
                 var memberSyntax = conversion?.Syntax as MemberAccessExpressionSyntax;
 
                 IFieldSymbol field = analysisContext.GetFieldOrNull(memberSyntax);
@@ -211,7 +211,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             }
 
             private bool ProcessAsLiteralSyntax([NotNull] SwitchAnalysisContext analysisContext,
-                [NotNull] ISingleValueCaseClause caseClause)
+                [NotNull] ISingleValueCaseClauseOperation caseClause)
             {
                 if (caseClause.Value.Syntax is LiteralExpressionSyntax literalSyntax)
                 {
@@ -259,9 +259,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                 return false;
             }
 
-            private bool ProcessAsField([NotNull] ISingleValueCaseClause caseClause)
+            private bool ProcessAsField([NotNull] ISingleValueCaseClauseOperation caseClause)
             {
-                if (caseClause.Value is IFieldReferenceExpression enumField)
+                if (caseClause.Value is IFieldReferenceOperation enumField)
                 {
                     caseClauseValues.Add(enumField.Field);
                     return true;
@@ -278,7 +278,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             public CancellationToken CancellationToken { get; }
 
             [NotNull]
-            public ISwitchStatement SwitchStatement { get; }
+            public ISwitchOperation SwitchStatement { get; }
 
             [NotNull]
             public ISymbol BooleanTrue { get; }
@@ -286,7 +286,7 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             [NotNull]
             public ISymbol BooleanFalse { get; }
 
-            public SwitchAnalysisContext([NotNull] ISwitchStatement switchStatement, [NotNull] INamedTypeSymbol systemBoolean,
+            public SwitchAnalysisContext([NotNull] ISwitchOperation switchStatement, [NotNull] INamedTypeSymbol systemBoolean,
                 OperationAnalysisContext context)
             {
                 Guard.NotNull(switchStatement, nameof(switchStatement));

@@ -6,7 +6,7 @@ using CSharpGuidelinesAnalyzer.Extensions;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Semantics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 {
@@ -28,9 +28,9 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
 
         private readonly ImmutableArray<OperationKind> statementKinds = ImmutableArray.Create(
-            OperationKind.VariableDeclarationStatement, OperationKind.SwitchStatement, OperationKind.IfStatement,
-            OperationKind.LoopStatement, OperationKind.ReturnStatement, OperationKind.LockStatement,
-            OperationKind.UsingStatement, OperationKind.YieldReturnStatement, OperationKind.ExpressionStatement);
+            OperationKind.VariableDeclarationGroup, OperationKind.Switch, OperationKind.Conditional,
+            OperationKind.Loop, OperationKind.Return, OperationKind.Lock,
+            OperationKind.Using, OperationKind.YieldReturn, OperationKind.ExpressionStatement, OperationKind.Throw);
 
         public override void Initialize([NotNull] AnalysisContext context)
         {
@@ -42,6 +42,11 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
 
         private void AnalyzeStatement(OperationAnalysisContext context)
         {
+            if (!context.Operation.IsStatement())
+            {
+                return;
+            }
+
             var statementWalker = new StatementWalker();
             statementWalker.Visit(context.Operation);
 
@@ -58,17 +63,8 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
         [NotNull]
         private static Location GetLocation([NotNull] IOperation operation)
         {
-            var targetOperation = operation;
-
-            // TODO: May need to apply this trick multiple times to keep location parity with master branch.
-            if (operation is IExpressionStatement expressionStatement &&
-                expressionStatement.Expression is IThrowExpression throwExpression)
-            {
-                targetOperation = throwExpression;
-            }
-
-            return targetOperation.GetLocationForKeyword(LookupKeywordStrategy.PreferWhileKeywordInDoWhileLoop) ??
-                targetOperation.Syntax.GetLocation();
+            return operation.GetLocationForKeyword(LookupKeywordStrategy.PreferWhileKeywordInDoWhileLoop) ??
+                operation.Syntax.GetLocation();
         }
 
         [NotNull]
@@ -106,91 +102,96 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
             [ItemNotNull]
             public ICollection<string> IdentifiersAssigned { get; } = new HashSet<string>();
 
-            public override void VisitVariableDeclaration([NotNull] IVariableDeclaration operation)
+            public override void VisitVariableDeclaration([NotNull] IVariableDeclarationOperation operation)
             {
-                if (operation.Initializer != null)
+                foreach (var declarator in operation.Declarators)
                 {
-                    IdentifiersAssigned.Add(operation.Variables.Single().Name);
+                    if (declarator.Initializer != null)
+                    {
+                        IdentifiersAssigned.Add(declarator.Symbol.Name);
+                    }
                 }
 
                 base.VisitVariableDeclaration(operation);
             }
 
-            public override void VisitAnonymousFunctionExpression([NotNull] IAnonymousFunctionExpression operation)
+            public override void VisitAnonymousFunction([NotNull] IAnonymousFunctionOperation operation)
             {
             }
 
-            public override void VisitSimpleAssignmentExpression([NotNull] ISimpleAssignmentExpression operation)
+            public override void VisitSimpleAssignment([NotNull] ISimpleAssignmentOperation operation)
             {
                 RegisterAssignment(operation.Target);
 
-                base.VisitSimpleAssignmentExpression(operation);
+                base.VisitSimpleAssignment(operation);
             }
 
-            public override void VisitCompoundAssignmentExpression([NotNull] ICompoundAssignmentExpression operation)
+            public override void VisitCompoundAssignment([NotNull] ICompoundAssignmentOperation operation)
             {
                 RegisterAssignment(operation.Target);
 
-                base.VisitCompoundAssignmentExpression(operation);
+                base.VisitCompoundAssignment(operation);
             }
 
-            public override void VisitIncrementOrDecrementExpression([NotNull] IIncrementOrDecrementExpression operation)
+            public override void VisitIncrementOrDecrement([NotNull] IIncrementOrDecrementOperation operation)
             {
                 RegisterAssignment(operation.Target);
 
-                base.VisitIncrementOrDecrementExpression(operation);
+                base.VisitIncrementOrDecrement(operation);
             }
 
-            private void RegisterAssignment([NotNull] IOperation operation)
+            public override void VisitConditional([NotNull] IConditionalOperation operation)
             {
-                IdentifierInfo identifierInfo = operation.TryGetIdentifierInfo();
-                if (identifierInfo != null)
+                if (operation.IsStatement())
                 {
-                    IdentifiersAssigned.Add(identifierInfo.Name.LongName);
+                    Visit(operation.Condition);
+                }
+                else
+                {
+                    base.VisitConditional(operation);
                 }
             }
 
-            public override void VisitIfStatement([NotNull] IIfStatement operation)
+            public override void VisitForLoop([NotNull] IForLoopOperation operation)
             {
+                VisitArray(operation.Before);
                 Visit(operation.Condition);
+                VisitArray(operation.AtLoopBottom);
             }
 
-            public override void VisitForLoopStatement([NotNull] IForLoopStatement operation)
-            {
-                Visit(operation.Condition);
-            }
-
-            public override void VisitForEachLoopStatement([NotNull] IForEachLoopStatement operation)
+            public override void VisitForEachLoop([NotNull] IForEachLoopOperation operation)
             {
                 Visit(operation.Collection);
             }
 
-            public override void VisitDoLoopStatement([NotNull] IDoLoopStatement operation)
+            public override void VisitWhileLoop([NotNull] IWhileLoopOperation operation)
             {
                 Visit(operation.Condition);
             }
 
-            public override void VisitWhileLoopStatement([NotNull] IWhileLoopStatement operation)
+            public override void VisitThrow([NotNull] IThrowOperation operation)
             {
-                Visit(operation.Condition);
+                if (operation.IsStatement())
+                {
+                    Visit(operation.Exception);
+                }
+                else
+                {
+                    base.VisitThrow(operation);
+                }
             }
 
-            /*public override void VisitThrowExpression([NotNull] IThrowExpression operation)
+            public override void VisitLock([NotNull] ILockOperation operation)
             {
-                Visit(operation.Expression);
-            }*/
-
-            public override void VisitLockStatement([NotNull] ILockStatement operation)
-            {
-                Visit(operation.Expression);
+                Visit(operation.LockedValue);
             }
 
-            public override void VisitUsingStatement([NotNull] IUsingStatement operation)
+            public override void VisitUsing([NotNull] IUsingOperation operation)
             {
-                Visit(operation.Value);
+                Visit(operation.Resources);
             }
 
-            public override void VisitSwitchCase([NotNull] ISwitchCase operation)
+            public override void VisitSwitchCase([NotNull] ISwitchCaseOperation operation)
             {
                 VisitArray(operation.Clauses);
             }
@@ -203,6 +204,15 @@ namespace CSharpGuidelinesAnalyzer.Rules.Maintainability
                     {
                         Visit(operation);
                     }
+                }
+            }
+
+            private void RegisterAssignment([NotNull] IOperation operation)
+            {
+                IdentifierInfo identifierInfo = operation.TryGetIdentifierInfo();
+                if (identifierInfo != null)
+                {
+                    IdentifiersAssigned.Add(identifierInfo.Name.LongName);
                 }
             }
         }
